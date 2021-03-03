@@ -7,7 +7,10 @@ import 'dart:math';
 import 'dart:typed_data';
 import "package:pointycastle/export.dart";
 import "package:asn1lib/asn1lib.dart";
-import 'src/rsa_pkcs.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:asn1lib/asn1lib.dart';
 
 
 
@@ -145,6 +148,15 @@ class RsaKey{
           e_bytes = pack_len(e_bytes.length) + e_bytes;
           return 'ssh-rsa ' + base64.encode(str_bytes + n_bytes + e_bytes);
         }
+        if(format == 'Sakaar'){
+          List<int> n_bytes = to_bytes(_n);
+
+          if (n_bytes[0] & 0x80 == 0x80){
+            n_bytes = [0] + n_bytes;
+          }
+          n_bytes = pack_len(n_bytes.length) + n_bytes;
+          return base64.encode(n_bytes);
+        }
 
         throw("Unknown key format '" + format.toString() + "'. Cannot export the RSA key.");
     }
@@ -198,20 +210,7 @@ class RsaKey{
     }
 
     if (extern_key.startsWith('-----')){
-        var po = RSAPKCSParser().parsePEM(extern_key);
-        if(po.private != null){
-          BigInt p = po.private.prime1;
-          BigInt q = po.private.prime2;
-          BigInt n = po.private.modulus;
-          BigInt e = RsaKey.E;
-          BigInt d = po.private.privateExponent;
-          BigInt u = inverse(p, q);
-          return RsaKey(n: n,e: e, q: q,p: p,d: d,u: u);
-        }else{
-          BigInt n = po.public.modulus;
-          BigInt e = RsaKey.E;
-          return RsaKey(n: n,e: e);
-        }
+        return RSAPKCSParser().parsePEM(extern_key);
     }
 
     if(extern_key.startsWith('ssh-rsa ')){
@@ -233,6 +232,15 @@ class RsaKey{
         list = list.sublist(len+4);
 
         return RsaKey(n: n , e: e);
+    }
+    if(extern_key.startsWith('Sakaar: ')){
+        String lol = extern_key.split(' ')[1];
+        List<int> list = base64.decode(lol);
+        var len = unpack_len(list.sublist(0,4));
+        BigInt n = from_bytes(list.sublist(4,len+4));
+        list = list.sublist(len+4);
+
+        return RsaKey(n: n , e: RsaKey.E);
     }
 
     throw("RSA key format is not supported");
@@ -291,5 +299,175 @@ class RsaKey{
     // throw("LOL");
 
     return RsaKey(n:n, e:e, d:d, p:p, q:q, u:u);
+  }
+}
+
+
+
+/// Parser From Pem format of rsa keys
+class RSAPKCSParser {
+  static const String pkcsHeader = '-----';
+  static const String pkcs1PublicHeader = '-----BEGIN RSA PUBLIC KEY-----';
+  static const String pkcs8PublicHeader = '-----BEGIN PUBLIC KEY-----';
+  static const String pkcs1PublicFooter = '-----END RSA PUBLIC KEY-----';
+  static const String pkcs8PublicFooter = '-----END PUBLIC KEY-----';
+
+  static const String pkcs1PrivateHeader = '-----BEGIN RSA PRIVATE KEY-----';
+  static const String pkcs8PrivateHeader = '-----BEGIN PRIVATE KEY-----';
+  static const String pkcs1PrivateFooter = '-----END RSA PRIVATE KEY-----';
+  static const String pkcs8PrivateFooter = '-----END PRIVATE KEY-----';
+
+  static const String pkcs8PrivateEncHeader =
+      '-----BEGIN ENCRYPTED PRIVATE KEY-----';
+  static const String pkcs8PrivateEncFooter =
+      '-----END ENCRYPTED PRIVATE KEY-----';
+
+  static const String certHeader = '-----BEGIN CERTIFICATE-----';
+  static const String certFooter = '-----END CERTIFICATE-----';
+
+  /// Parse PEM
+  RsaKey parsePEM(String pem, {String password}) {
+    final List<String> lines = pem
+        .split('\n')
+        .map((String line) => line.trim())
+        .where((String line) => line.isNotEmpty)
+        // .skipWhile((String line) => !line.startsWith(pkcsHeader))
+        .toList();
+    if (lines.isEmpty) {
+      _error('format error');
+    }
+    RsaKey publicKey = _publicKey(lines);
+    RsaKey privateKey = _privateKey(lines);
+    if(privateKey != null){
+      return privateKey;
+    }else if(publicKey != null){
+      return publicKey;
+    }
+  }
+
+  RsaKey _privateKey(List<String> lines, {String password}) {
+    int header;
+    int footer;
+
+    if (lines.contains(pkcs1PrivateHeader)) {
+      header = lines.indexOf(pkcs1PrivateHeader);
+      footer = lines.indexOf(pkcs1PrivateFooter);
+    } else if (lines.contains(pkcs8PrivateHeader)) {
+      header = lines.indexOf(pkcs8PrivateHeader);
+      footer = lines.indexOf(pkcs8PrivateFooter);
+    } else if (lines.contains(pkcs8PrivateEncHeader)) {
+      header = lines.indexOf(pkcs8PrivateEncHeader);
+      footer = lines.indexOf(pkcs8PrivateEncFooter);
+    } else {
+      return null;
+    }
+    if (footer < 0) {
+      _error('format error : cannot find footer');
+    }
+    final String key = lines.sublist(header + 1, footer).join('');
+    final Uint8List keyBytes = Uint8List.fromList(base64.decode(key));
+    final ASN1Parser p = ASN1Parser(keyBytes);
+
+    final ASN1Sequence seq = p.nextObject();
+
+    if (lines[header] == pkcs1PrivateHeader) {
+      return _pkcs1PrivateKey(seq);
+    } else if (lines[header] == pkcs8PrivateHeader) {
+      return _pkcs8PrivateKey(seq);
+    } else {
+      return _pkcs8PrivateEncKey(seq, password);
+    }
+  }
+
+  RsaKey _pkcs8CertificatePrivateKey(ASN1Sequence seq) {
+    if (seq.elements.length != 3) _error('Bad certificate format');
+    var certificate = seq.elements[0] as ASN1Sequence;
+
+    var subjectPublicKeyInfo = certificate.elements[6] as ASN1Sequence;
+
+    return _pkcs8PublicKey(subjectPublicKeyInfo);
+  }
+
+  RsaKey _pkcs8PrivateEncKey(ASN1Sequence seq, String password) {
+    throw UnimplementedError();
+  }
+
+  RsaKey _pkcs1PrivateKey(ASN1Sequence seq) {
+    final List<ASN1Integer> asn1Ints = seq.elements.cast<ASN1Integer>();
+    final RsaKey key = RsaKey(
+      n: asn1Ints[1].valueAsBigInteger,
+      d: asn1Ints[3].valueAsBigInteger,
+      p: asn1Ints[4].valueAsBigInteger,
+      q: asn1Ints[5].valueAsBigInteger,
+      e: RsaKey.E,
+      u: inverse(asn1Ints[4].valueAsBigInteger, asn1Ints[5].valueAsBigInteger)
+    );
+    print('publicExponent');
+    print(asn1Ints[2].valueAsBigInteger);
+    print(asn1Ints[2].valueAsBigInteger == RsaKey.E);
+    return key;
+  }
+
+  RsaKey _pkcs8PrivateKey(ASN1Sequence seq) {
+    final ASN1OctetString os = seq.elements[2];
+    final ASN1Parser p = ASN1Parser(os.valueBytes());
+    return _pkcs1PrivateKey(p.nextObject());
+  }
+
+  RsaKey _publicKey(List<String> lines) {
+    int header;
+    int footer;
+    if (lines.contains(pkcs1PublicHeader)) {
+      header = lines.indexOf(pkcs1PublicHeader);
+      footer = lines.indexOf(pkcs1PublicFooter);
+    } else if (lines.contains(pkcs8PublicHeader)) {
+      header = lines.indexOf(pkcs8PublicHeader);
+      footer = lines.indexOf(pkcs8PublicFooter);
+    } else if (lines.contains(certHeader)) {
+      header = lines.indexOf(certHeader);
+      footer = lines.indexOf(certFooter);
+    } else {
+      return null;
+    }
+    if (footer < 0) {
+      _error('format error : cannot find footer');
+    }
+    final String key = lines.sublist(header + 1, footer).join('');
+    final Uint8List keyBytes = Uint8List.fromList(base64.decode(key));
+    final ASN1Parser p = ASN1Parser(keyBytes);
+
+    final ASN1Sequence seq = p.nextObject();
+
+    if (lines[header] == pkcs1PublicHeader) {
+      return _pkcs1PublicKey(seq);
+    }
+    if (lines[header] == pkcs1PublicHeader) {
+      return _pkcs1PublicKey(seq);
+    } else if (lines[header] == certHeader) {
+      return _pkcs8CertificatePrivateKey(seq);
+    } else {
+      return _pkcs8PublicKey(seq);
+    }
+  }
+
+  RsaKey _pkcs1PublicKey(ASN1Sequence seq) {
+    final List<ASN1Integer> asn1Ints = seq.elements.cast<ASN1Integer>();
+    print('publicExponent');
+    print(asn1Ints[2].valueAsBigInteger);
+    print(asn1Ints[2].valueAsBigInteger == RsaKey.E);
+    
+    RsaKey key = RsaKey(n: asn1Ints[0].valueAsBigInteger, e: asn1Ints[1].valueAsBigInteger);
+    return key;
+  }
+
+  RsaKey _pkcs8PublicKey(ASN1Sequence seq) {
+    final ASN1BitString os = seq.elements[1]; //ASN1OctetString or ASN1BitString
+    final Uint8List bytes = os.valueBytes().sublist(1);
+    final ASN1Parser p = ASN1Parser(bytes);
+    return _pkcs1PublicKey(p.nextObject());
+  }
+
+  void _error(String msg) {
+    throw FormatException(msg);
   }
 }
