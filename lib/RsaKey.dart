@@ -1,13 +1,13 @@
 import 'package:test/test.dart';
 
-import 'Primality.dart';
+import 'src/Primality.dart';
 
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import "package:pointycastle/export.dart";
 import "package:asn1lib/asn1lib.dart";
-import 'rsa_pkcs.dart';
+import 'src/rsa_pkcs.dart';
 
 
 
@@ -129,13 +129,21 @@ class RsaKey{
         }
 
         if(format == 'OpenSSH'){
-            
+          List<int> str_bytes = str_to_bytes('ssh-rsa');
           List<int> n_bytes = to_bytes(_n);
+          List<int> e_bytes = to_bytes(_e);
+
           if (n_bytes[0] & 0x80 == 0x80){
             n_bytes = [0] + n_bytes;
           }
+          if (e_bytes[0] & 0x80 == 0x80){
+            e_bytes = [0] + e_bytes;
+          }
+
+          str_bytes = pack_len(str_bytes.length) + str_bytes;
           n_bytes = pack_len(n_bytes.length) + n_bytes;
-          return 'OpenSSH: ' + base64.encode(n_bytes);
+          e_bytes = pack_len(e_bytes.length) + e_bytes;
+          return 'ssh-rsa ' + base64.encode(str_bytes + n_bytes + e_bytes);
         }
 
         throw("Unknown key format '" + format.toString() + "'. Cannot export the RSA key.");
@@ -206,12 +214,25 @@ class RsaKey{
         }
     }
 
-    if(extern_key.startsWith('OpenSSH: ')){
+    if(extern_key.startsWith('ssh-rsa ')){
         String lol = extern_key.split(' ')[1];
         List<int> list = base64.decode(lol);
-        var len = list.sublist(0,4);
-        list = list.sublist(4,unpack_len(len)+4);
-        return RsaKey(n: from_bytes(list) , e: RsaKey.E);
+
+        
+        var len = unpack_len(list.sublist(0,4));
+        list = list.sublist(len+4);
+
+        // Get n
+        len = unpack_len(list.sublist(0,4));
+        BigInt n = from_bytes(list.sublist(4,len+4));
+        list = list.sublist(len+4);
+
+        // Get e
+        len = unpack_len(list.sublist(0,4));
+        BigInt e = from_bytes(list.sublist(4,len+4));
+        list = list.sublist(len+4);
+
+        return RsaKey(n: n , e: e);
     }
 
     throw("RSA key format is not supported");

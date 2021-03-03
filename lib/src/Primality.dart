@@ -458,3 +458,17 @@ BigInt from_bytes(List<int> list){
   }
   return res;
 }
+
+List<int> str_to_bytes(String line){
+  List<int> res = [];
+  String systems = '';
+  if(systems == ''){
+    for(var i = 0;i<256;i++){
+      systems+=String.fromCharCode(i);
+    }
+  }
+  for(int i=0;i<line.length;i++){
+    res.add(systems.indexOf(line[i]));
+  }
+  return res.reversed.toList();
+}

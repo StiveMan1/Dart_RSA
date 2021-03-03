@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'src/RsaKey.dart';
+import 'RsaKey.dart';
 
 void main() {
   var key = utf8.encode('p@ssw0rd');
