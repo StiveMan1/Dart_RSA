@@ -1,16 +1,26 @@
-# sakaar_flutter
+# RSA for Dart 
 
-A new Flutter project.
+A new Flutter module for making RSA constant key pairs from constant password.
 
 ## Getting Started
 
 This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+In this progect i made comfort fro me RSA algo. 
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+This module can create a constant privet key from constant password.
+```dart
+import "package:RsaKey/RsaKey.dart";
+RsaKey.generate(1024,password: 'Hello World') == RsaKey.generate(1024,password: 'Hello World'); // True
+RsaKey.generate(1024,password: 'Hello World') == RsaKey.generate(1024,password: 'Hi'); // False
+```
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+In this module represented OpenSSH only for publick keys format for RSA algo;
+```dart
+import "package:RsaKey/RsaKey.dart";
+RsaKey privateKey = RsaKey.generate(1024,password: 'Hello World');
+String openSsh = privateKey.exportKey(format:'OpenSSH'));
+//
+RsaKey publicKey = RsaKey.importKey(openSsh);
+print(publicKey == privateKey.publickey()); // True
+```
