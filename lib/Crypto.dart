@@ -25,14 +25,30 @@ void main() {
   
   
 
-  String publickey = '''-----BEGIN PUBLIC KEY-----
-MIGyMA0GCSqGSIb3DQEBAQUAA4GgADCBnAKBgQDENUCups5Fd+eQu2fMOu9Bz6ej
-wpNuwlKZfwjd+dkdAoIO+/Jn7I9nF2CW/3eZiyh9FH9PhFEtbzsXOFZrmls9r6Th
-a1kjHgl0R/MxkSxaZnHnhX/MEVUXn0N9PmTX1IBX5vNoDaNXHVmNmxCOoRA8uq4V
-ZNM+lXFoyH7lBBWIXwIWBkcRfZa6li6pDDL4XRr+UsMGErCm9Q==
------END PUBLIC KEY-----''';
+  String publickey = '''-----BEGIN RSA PRIVATE KEY-----
+MIICcQIBAAKBgQDENUCups5Fd+eQu2fMOu9Bz6ejwpNuwlKZfwjd+dkdAoIO+/Jn
+7I9nF2CW/3eZiyh9FH9PhFEtbzsXOFZrmls9r6Tha1kjHgl0R/MxkSxaZnHnhX/M
+EVUXn0N9PmTX1IBX5vNoDaNXHVmNmxCOoRA8uq4VZNM+lXFoyH7lBBWIXwIWBkcR
+fZa6li6pDDL4XRr+UsMGErCm9QKBgEqBOXhbVA2U2xkA8Kzg5VgrgemRGjUM4Re6
+JA6KldRiojo/skpljusz90tZwYKQ9pxkZcPKxIGNmoRQYIYttV/mmhigC7pviFBw
+h5jE1t/j3CHIJSi/4PEBNRVAe3ZpyUE7Nb9efEMTsvqAuY0VdI4eSRKD3UJ/uynm
+aBXf06ZRAkEA1lYeDrIicZVbh/yfrU+bNdfF84RChEt2/WD5FcxRLJatRGLZvkn/
+ec2xQef+tWeVYwvOVPfgsk/3c/91WGqm3QJBAOpZBkryySetKpRPqGu3I4fOlwM1
+nd75fkOYwDGv5k734+niKNL/e2dalzDuUveFcu5Tqs5CbC5g+8PdqtPbUmsCQQCO
+GsjlUchSc3WX+nVA2PQfAssASuXimB3iBtoaht9um8dbUMV5o5YNtIKqqgONa1EJ
+xZHuQ/r7yNbYVm+zzsmFAkEArUAMVKW9l3FcePPRv/uIBFbvM74h+bVaC0QOj8wi
+qlHCePA4H1DWnjdw11mWSHi4hcjN4yGWGx75CG9/qMIhpQJBAIF1veqrPkriHfjk
+aecs3AKsfYcCwHxAJ4VUqWcC22irLb3E3++3uEQ07EptfEpvq+9eiYw7guRcqYBc
+IeIPOnM=
+-----END RSA PRIVATE KEY-----''';
 
-  var po = RsaKey.importKey(publickey);
+  RsaKey po = RsaKey.importKey(publickey);
+  // print(RsaKeyHelper.encodePrivateKeyToPem(po) == publickey);
+  RsaKey lo = RsaKey.importKey((po.exportKey()).toString());
+  print("NOOOOO");
+  print(po.n() == lo.n() && po.e() == lo.e() && po.p() == lo.p() && po.q() == lo.q() && po.d() == lo.d() && po.u() == lo.u());
+  print((lo.exportKey()) == publickey);
+
 
 
 

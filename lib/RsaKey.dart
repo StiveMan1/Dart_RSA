@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import "package:pointycastle/export.dart";
 import "package:asn1lib/asn1lib.dart";
 import 'dart:convert';
+import 'package:basic_utils/basic_utils.dart';
 import 'dart:typed_data';
 
 import 'package:asn1lib/asn1lib.dart';
@@ -125,7 +126,7 @@ class RsaKey{
       return RsaKey(n:_n, e:_e);
     }
 
-    exportKey({format='PEM', passphrase=null, pkcs=1, protection=null, randfunc=null}){
+    String exportKey({format='PEM', passphrase=null, pkcs=1, protection=null, randfunc=null}){
 
         if(randfunc == null){
             randfunc = My_Random('LOLLSKASKL');
@@ -156,6 +157,12 @@ class RsaKey{
           }
           n_bytes = pack_len(n_bytes.length) + n_bytes;
           return base64.encode(n_bytes);
+        }
+        String key_type = '';
+        if(has_private()){
+          return RSAPKCSParser.encodePrivateKeyToPem(this);
+        }else{
+          return RSAPKCSParser.encodePublicKeyToPem(this);
         }
 
         throw("Unknown key format '" + format.toString() + "'. Cannot export the RSA key.");
@@ -306,6 +313,7 @@ class RsaKey{
 
 /// Parser From Pem format of rsa keys
 class RSAPKCSParser {
+  
   static const String pkcsHeader = '-----';
   static const String pkcs1PublicHeader = '-----BEGIN RSA PUBLIC KEY-----';
   static const String pkcs8PublicHeader = '-----BEGIN PUBLIC KEY-----';
@@ -399,12 +407,13 @@ class RSAPKCSParser {
       d: asn1Ints[3].valueAsBigInteger,
       p: asn1Ints[4].valueAsBigInteger,
       q: asn1Ints[5].valueAsBigInteger,
-      e: RsaKey.E,
+      e: asn1Ints[2].valueAsBigInteger,
       u: inverse(asn1Ints[4].valueAsBigInteger, asn1Ints[5].valueAsBigInteger)
     );
-    print('publicExponent');
-    print(asn1Ints[2].valueAsBigInteger);
-    print(asn1Ints[2].valueAsBigInteger == RsaKey.E);
+    // for(int i=0;i<9;i++){
+    //   print(i);
+    //   print(asn1Ints[i].valueAsBigInteger);
+    // }
     return key;
   }
 
@@ -452,10 +461,6 @@ class RSAPKCSParser {
 
   RsaKey _pkcs1PublicKey(ASN1Sequence seq) {
     final List<ASN1Integer> asn1Ints = seq.elements.cast<ASN1Integer>();
-    print('publicExponent');
-    print(asn1Ints[2].valueAsBigInteger);
-    print(asn1Ints[2].valueAsBigInteger == RsaKey.E);
-    
     RsaKey key = RsaKey(n: asn1Ints[0].valueAsBigInteger, e: asn1Ints[1].valueAsBigInteger);
     return key;
   }
@@ -470,4 +475,98 @@ class RSAPKCSParser {
   void _error(String msg) {
     throw FormatException(msg);
   }
+  static String encodePublicKeyToPem(RsaKey publicKey) {
+      var algorithmSeq = new ASN1Sequence();
+      var algorithmAsn1Obj = new ASN1Object.fromBytes(Uint8List.fromList([0x6, 0x9, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0xd, 0x1, 0x1, 0x1]));
+      var paramsAsn1Obj = new ASN1Object.fromBytes(Uint8List.fromList([0x5, 0x0]));
+      algorithmSeq.add(algorithmAsn1Obj);
+      algorithmSeq.add(paramsAsn1Obj);
+
+      var publicKeySeq = new ASN1Sequence();
+      publicKeySeq.add(ASN1Integer(publicKey.n()));
+      publicKeySeq.add(ASN1Integer(publicKey.e()));
+      var publicKeySeqBitString = new ASN1BitString(Uint8List.fromList(publicKeySeq.encodedBytes));
+
+      var topLevelSeq = new ASN1Sequence();
+      topLevelSeq.add(algorithmSeq);
+      topLevelSeq.add(publicKeySeqBitString);
+      var dataBase64 = base64.encode(topLevelSeq.encodedBytes);
+      String res = '';
+      for(int i=0;i<dataBase64.length;i++){
+        if(i%64 == 0){
+          res+='\n';
+        }
+        res += dataBase64[i];
+      }
+      return """-----BEGIN PUBLIC KEY-----\r$res\r\n-----END PUBLIC KEY-----""";
+  }
+
+  static String encodePrivateKeyToPem(RsaKey privateKey) {
+      var version = ASN1Integer(BigInt.from(0));
+
+      ASN1Sequence privateKeySeq = new ASN1Sequence();
+
+      privateKeySeq.add(version);
+      privateKeySeq.add(ASN1Integer(privateKey._n));
+      privateKeySeq.add(ASN1Integer(privateKey._e));
+      privateKeySeq.add(ASN1Integer(privateKey._d));
+      privateKeySeq.add(ASN1Integer(privateKey._p));
+      privateKeySeq.add(ASN1Integer(privateKey._q));
+      privateKeySeq.add(ASN1Integer(privateKey._d % (privateKey._p - BigInt.from(1))));
+      privateKeySeq.add(ASN1Integer(privateKey._d % (privateKey._q - BigInt.from(1))));
+      privateKeySeq.add(ASN1Integer(inverse(privateKey._q, privateKey._p)));
+      
+      var dataBase64 = base64.encode(privateKeySeq.encodedBytes);
+      var chunks =( StringUtils.chunk(dataBase64, 64)).join('\n');
+      return """-----BEGIN RSA PRIVATE KEY-----\n$chunks\n-----END RSA PRIVATE KEY-----""";
+  }
+}
+
+
+
+// import 'dart:convert';
+// import 'dart:math';
+// import 'dart:typed_data';
+// import 'package:encrypt/encrypt.dart';
+// import "package:pointycastle/export.dart";
+// import "package:asn1lib/asn1lib.dart";
+
+// import 'fixed_secure_random.dart';
+
+List<int> decodePEM(String pem) {
+    var startsWith = [
+        "-----BEGIN PUBLIC KEY-----",
+        "-----BEGIN PRIVATE KEY-----",
+        "-----BEGIN PGP PUBLIC KEY BLOCK-----\r\nVersion: React-Native-OpenPGP.js 0.1\r\nComment: http://openpgpjs.org\r\n\r\n",
+        "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\nVersion: React-Native-OpenPGP.js 0.1\r\nComment: http://openpgpjs.org\r\n\r\n",
+    ];
+    var endsWith = [
+        "-----END PUBLIC KEY-----",
+        "-----END PRIVATE KEY-----",
+        "-----END PGP PUBLIC KEY BLOCK-----",
+        "-----END PGP PRIVATE KEY BLOCK-----",
+    ];
+    bool isOpenPgp = pem.indexOf('BEGIN PGP') != -1;
+
+    for (var s in startsWith) {
+        if (pem.startsWith(s)) {
+            pem = pem.substring(s.length);
+        }
+    }
+
+    for (var s in endsWith) {
+        if (pem.endsWith(s)) {
+            pem = pem.substring(0, pem.length - s.length);
+        }
+    }
+
+    if (isOpenPgp) {
+        var index = pem.indexOf('\r\n');
+        pem = pem.substring(0, index);
+    }
+
+    pem = pem.replaceAll('\n', '');
+    pem = pem.replaceAll('\r', '');
+
+    return base64.decode(pem);
 }
