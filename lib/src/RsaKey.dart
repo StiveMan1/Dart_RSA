@@ -1,11 +1,8 @@
-import 'package:test/test.dart';
-
-import 'src/Primality.dart';
+import 'Primality.dart';
 
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
-import "package:pointycastle/export.dart";
 import "package:asn1lib/asn1lib.dart";
 import 'dart:convert';
 import 'package:basic_utils/basic_utils.dart';

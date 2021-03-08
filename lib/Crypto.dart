@@ -4,56 +4,12 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'RsaKey.dart';
+import 'src/RsaKey.dart';
 
 void main() {
-  var key = utf8.encode('p@ssw0rd');
-  String digest = sha256.convert(key).toString();
-  print((digest == 'a075d17f3d453073853f813838c15b8023b8c487038436354fe599c3942e1f95').toString());
-
-  print('');
-  RsaKey lol = RsaKey.generate(1024,password: 'idsjojdso');
-  print(lol.n());
-  print('');
-  BigInt mess = BigInt.parse('238984792734283984729837492374894729739847927347927349729');
-  print(lol.decrypt(mess));
-  print(RsaKey.importKey(lol.exportKey(format:'OpenSSH')).encrypt(lol.decrypt(mess)) == mess);
-  print('LOL');
-  BigInt min_p = BigInt.parse('9480751908109176726832526455652159260084541744031329863792443335050652303478140824795455728407420733006933090614179782624068317238241310650437075740534632');
-  BigInt  e = BigInt.parse('2348732984757349847638174698237628374682364862834421');
-  // print(arc.random(exact_bits: 512) == BigInt.parse('8759492523734002772954185296163644346775720732084835037605567350343357087204673198502073297698704315148996660521711422652029717033124036683623812569692389'));
-  
-  
-
-  String publickey = '''-----BEGIN RSA PRIVATE KEY-----
-MIICcQIBAAKBgQDENUCups5Fd+eQu2fMOu9Bz6ejwpNuwlKZfwjd+dkdAoIO+/Jn
-7I9nF2CW/3eZiyh9FH9PhFEtbzsXOFZrmls9r6Tha1kjHgl0R/MxkSxaZnHnhX/M
-EVUXn0N9PmTX1IBX5vNoDaNXHVmNmxCOoRA8uq4VZNM+lXFoyH7lBBWIXwIWBkcR
-fZa6li6pDDL4XRr+UsMGErCm9QKBgEqBOXhbVA2U2xkA8Kzg5VgrgemRGjUM4Re6
-JA6KldRiojo/skpljusz90tZwYKQ9pxkZcPKxIGNmoRQYIYttV/mmhigC7pviFBw
-h5jE1t/j3CHIJSi/4PEBNRVAe3ZpyUE7Nb9efEMTsvqAuY0VdI4eSRKD3UJ/uynm
-aBXf06ZRAkEA1lYeDrIicZVbh/yfrU+bNdfF84RChEt2/WD5FcxRLJatRGLZvkn/
-ec2xQef+tWeVYwvOVPfgsk/3c/91WGqm3QJBAOpZBkryySetKpRPqGu3I4fOlwM1
-nd75fkOYwDGv5k734+niKNL/e2dalzDuUveFcu5Tqs5CbC5g+8PdqtPbUmsCQQCO
-GsjlUchSc3WX+nVA2PQfAssASuXimB3iBtoaht9um8dbUMV5o5YNtIKqqgONa1EJ
-xZHuQ/r7yNbYVm+zzsmFAkEArUAMVKW9l3FcePPRv/uIBFbvM74h+bVaC0QOj8wi
-qlHCePA4H1DWnjdw11mWSHi4hcjN4yGWGx75CG9/qMIhpQJBAIF1veqrPkriHfjk
-aecs3AKsfYcCwHxAJ4VUqWcC22irLb3E3++3uEQ07EptfEpvq+9eiYw7guRcqYBc
-IeIPOnM=
------END RSA PRIVATE KEY-----''';
-
-  RsaKey po = RsaKey.importKey(publickey);
-  // print(RsaKeyHelper.encodePrivateKeyToPem(po) == publickey);
-  RsaKey lo = RsaKey.importKey((po.exportKey()).toString());
-  print("NOOOOO");
-  print(po.n() == lo.n() && po.e() == lo.e() && po.p() == lo.p() && po.q() == lo.q() && po.d() == lo.d() && po.u() == lo.u());
-  print((lo.exportKey()) == publickey);
-
-
-
-
-
-
+  RsaKey privateKey = RsaKey.generate(1024,password: 'Hello World');
+  String openSsh = privateKey.exportKey(format:'OpenSSH');
+  print(openSsh);
   // group('A group of RSA Key Tests', () {
   //   RSAKeypair rsaKeypair;
   //   Uint8List message;
