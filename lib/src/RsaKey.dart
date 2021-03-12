@@ -4,11 +4,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import "package:asn1lib/asn1lib.dart";
-import 'dart:convert';
+// import 'dart:convert';
 import 'package:basic_utils/basic_utils.dart';
-import 'dart:typed_data';
-
-import 'package:asn1lib/asn1lib.dart';
+// import 'dart:typed_data';
+// import 'package:asn1lib/asn1lib.dart';
 
 
 
@@ -495,7 +494,7 @@ class RSAPKCSParser {
         }
         res += dataBase64[i];
       }
-      return """-----BEGIN PUBLIC KEY-----\r$res\r\n-----END PUBLIC KEY-----""";
+      return """-----BEGIN PUBLIC KEY-----$res\n-----END PUBLIC KEY-----""";
   }
 
   static String encodePrivateKeyToPem(RsaKey privateKey) {
@@ -534,8 +533,8 @@ List<int> decodePEM(String pem) {
     var startsWith = [
         "-----BEGIN PUBLIC KEY-----",
         "-----BEGIN PRIVATE KEY-----",
-        "-----BEGIN PGP PUBLIC KEY BLOCK-----\r\nVersion: React-Native-OpenPGP.js 0.1\r\nComment: http://openpgpjs.org\r\n\r\n",
-        "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\nVersion: React-Native-OpenPGP.js 0.1\r\nComment: http://openpgpjs.org\r\n\r\n",
+        "-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: React-Native-OpenPGP.js 0.1\nComment: http://openpgpjs.org\n\n",
+        "-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: React-Native-OpenPGP.js 0.1\nComment: http://openpgpjs.org\n\n",
     ];
     var endsWith = [
         "-----END PUBLIC KEY-----",
@@ -558,12 +557,12 @@ List<int> decodePEM(String pem) {
     }
 
     if (isOpenPgp) {
-        var index = pem.indexOf('\r\n');
+        var index = pem.indexOf('\n');
         pem = pem.substring(0, index);
     }
 
     pem = pem.replaceAll('\n', '');
-    pem = pem.replaceAll('\r', '');
+    pem = pem.replaceAll('', '');
 
     return base64.decode(pem);
 }
